@@ -1,0 +1,5 @@
+timestamp,bpm,text
+00:00,120,Begin
+00:10,60,Slow down
+00:20,180,Speed up
+00:30,90,Finish
