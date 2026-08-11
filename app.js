@@ -1,5 +1,5 @@
 import { buildTimeline, formatTime } from './csv.js';
-import { resolveWorkoutEntry } from './workout-catalog.js';
+import { normalizeWorkoutManifest } from './workouts.js';
 
 const $ = (id) => document.getElementById(id);
 const ui = Object.fromEntries(['workoutSelect','csvFile','fileSummary','messages','startButton','pauseButton','stopButton','currentTime','currentBpm','currentCue','timelineBody','cueCount','playbackStatus','metronomeEnabled','speechEnabled','volume','volumeOutput'].map((id)=>[id,$(id)]));
@@ -43,7 +43,7 @@ function showSourceLoadError(displayName,message,error) {
   ui.messages.innerHTML=`<div class="error">${escapeHtml(message)}: ${escapeHtml(error.message)}</div>`;
   ui.startButton.disabled=true; ui.pauseButton.disabled=true; ui.stopButton.disabled=true;
 }
-async function initializeWorkouts() { try { const response=await fetch('./workouts/index.json'); if(!response.ok)throw new Error(`Workout list request failed (${response.status}).`); const manifest=await response.json(); if(!Array.isArray(manifest))throw new Error('Workout list must be an array.'); manifest.map((entry)=>resolveWorkoutEntry(entry,document.baseURI)).filter(Boolean).forEach((entry)=>{ const option=document.createElement('option'); option.value=entry.url; option.textContent=entry.name; ui.workoutSelect.append(option); }); } catch(error) { ui.workoutSelect.disabled=true; ui.messages.innerHTML=`<div class="warning">Premade workouts are unavailable: ${escapeHtml(error.message)}</div>`; } }
+async function initializeWorkouts() { try { const response=await fetch('./workouts/index.json'); if(!response.ok)throw new Error(`Workout list request failed (${response.status}).`); const manifest=await response.json(); normalizeWorkoutManifest(manifest).forEach((entry)=>{ const option=document.createElement('option'); option.value=`./workouts/${entry.file}`; option.textContent=entry.name; ui.workoutSelect.append(option); }); } catch(error) { ui.workoutSelect.disabled=true; ui.messages.innerHTML=`<div class="warning">Premade workouts are unavailable: ${escapeHtml(error.message)}</div>`; } }
 let workoutRequestId=0;
 ui.workoutSelect.addEventListener('change',async()=>{
   const option=ui.workoutSelect.selectedOptions[0]; const requestId=++workoutRequestId;
