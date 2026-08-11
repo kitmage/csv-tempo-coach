@@ -24,10 +24,19 @@
           <h2>Choose a CSV cue sheet</h2>
           <p>Required columns: <code>timestamp,bpm,text</code></p>
         </div>
-        <label class="file-button">
-          <input id="csvFile" type="file" accept=".csv,text/csv" />
-          <span>Choose CSV</span>
-        </label>
+        <div class="session-options">
+          <label for="workoutSelect">
+            <span>Premade workout</span>
+            <select id="workoutSelect">
+              <option value="">Choose a premade workout</option>
+            </select>
+          </label>
+          <span class="option-divider">or</span>
+          <label class="file-button">
+            <span>Upload your own CSV</span>
+            <input id="csvFile" type="file" accept=".csv,text/csv" />
+          </label>
+        </div>
         <div class="file-summary" id="fileSummary" aria-live="polite">No file selected</div>
         <div class="messages" id="messages" aria-live="polite"></div>
       </section>

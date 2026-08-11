@@ -15,6 +15,24 @@ timestamp,bpm,text
 
 Rows are sorted chronologically. Duplicate timestamps are allowed with a warning; later rows at the same timestamp become active last and therefore control the tempo.
 
+## Premade workouts
+
+Premade workouts live in [`workouts/`](workouts/) and are listed in `workouts/index.json`. The manifest is a JSON array; every record must provide a stable display `name` and a `file` path relative to the `workouts/` directory:
+
+```json
+[
+  { "name": "Beginner Intervals", "file": "beginner-intervals.csv" }
+]
+```
+
+To add a workout:
+
+1. Create its CSV beneath `workouts/` using the `timestamp,bpm,text` format described above.
+2. Add a manifest record to `workouts/index.json`. Use a non-empty, user-facing name and a relative path ending in `.csv`; do not use an absolute path or `..` path segments.
+3. Serve the app locally and choose the new entry from **Premade workout** to verify it loads.
+
+Both the manifest and workout requests use relative URLs so they continue to work when the site is deployed beneath a GitHub Pages project subpath.
+
 ## Run locally
 
 Because JavaScript modules require HTTP, serve the repository rather than opening `index.html` directly:
