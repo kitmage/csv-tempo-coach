@@ -1,4 +1,62 @@
 [
-  { "name": "Beginner Intervals", "file": "beginner-intervals.csv" },
-  { "name": "Tempo Ladder", "file": "tempo-ladder.csv" }
+  {
+    "name": "Beginner Intervals",
+    "file": "beginner-intervals.csv"
+  },
+  {
+    "name": "Tempo Ladder",
+    "file": "tempo-ladder.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 1",
+    "file": "first-day-to-5k/week-1.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 2",
+    "file": "first-day-to-5k/week-2.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 3",
+    "file": "first-day-to-5k/week-3.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 4",
+    "file": "first-day-to-5k/week-4.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 5 · Day 1",
+    "file": "first-day-to-5k/week-5-day-1.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 5 · Day 2",
+    "file": "first-day-to-5k/week-5-day-2.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 5 · Day 3",
+    "file": "first-day-to-5k/week-5-day-3.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 6 · Day 1",
+    "file": "first-day-to-5k/week-6-day-1.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 6 · Day 2",
+    "file": "first-day-to-5k/week-6-day-2.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 6 · Day 3",
+    "file": "first-day-to-5k/week-6-day-3.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 7",
+    "file": "first-day-to-5k/week-7.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 8",
+    "file": "first-day-to-5k/week-8.csv"
+  },
+  {
+    "name": "First Day to 5K · Week 9",
+    "file": "first-day-to-5k/week-9.csv"
+  }
 ]
