@@ -8,15 +8,30 @@ const LOOKAHEAD=0.1; const SCHEDULER_MS=25;
 
 function elapsed() { return isPlaying ? Math.max(0,audioContext.currentTime-playbackStart) : pausedAt; }
 function activeAt(time) { let found=-1; for(let i=0;i<timeline.length && timeline[i].time<=time;i+=1) found=i; return found; }
-function renderTimeline() { ui.timelineBody.innerHTML=timeline.map((item,i)=>`<tr data-index="${i}"><td>${formatTime(item.time)}</td><td>${item.bpm} BPM</td><td>${escapeHtml(item.text)||'<span class="muted">—</span>'}</td></tr>`).join(''); ui.cueCount.textContent=`${timeline.length} cue${timeline.length===1?'':'s'}`; }
+function renderTimeline() { ui.timelineBody.innerHTML=timeline.map((item,i)=>`<tr data-index="${i}" tabindex="0" aria-label="Jump to ${formatTime(item.time)}, ${item.bpm} BPM${item.text?`, ${escapeHtml(item.text)}`:''}"><td>${formatTime(item.time)}</td><td>${item.bpm} BPM</td><td>${escapeHtml(item.text)||'<span class="muted">—</span>'}</td></tr>`).join(''); ui.cueCount.textContent=`${timeline.length} cue${timeline.length===1?'':'s'}`; }
 function escapeHtml(value) { const node=document.createElement('div'); node.textContent=value; return node.innerHTML; }
-function setActive(index, speak=false) { activeIndex=index; document.querySelectorAll('tbody tr').forEach((row)=>row.classList.toggle('active',Number(row.dataset.index)===index)); const cue=timeline[index]; ui.currentBpm.textContent=cue?.bpm??'—'; ui.currentCue.textContent=cue?.text|| (cue?'No cue text':'Ready when you are'); if(speak && cue?.text && ui.speechEnabled.checked && 'speechSynthesis' in window) { speechSynthesis.speak(new SpeechSynthesisUtterance(cue.text)); } }
+function setActive(index, speak=false) { activeIndex=index; document.querySelectorAll('tbody tr').forEach((row)=>row.classList.toggle('active',Number(row.dataset.index)===index)); const cue=timeline[index]; ui.currentBpm.textContent=cue?.bpm??'—'; ui.currentCue.textContent=cue?.text|| (cue?'No cue text':'Ready when you are'); if(speak && cue?.text && ui.speechEnabled.checked && 'speechSynthesis' in window) { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(cue.text)); } }
 function scheduleClick(time) { if(!ui.metronomeEnabled.checked) return; const oscillator=audioContext.createOscillator(); const gain=audioContext.createGain(); oscillator.frequency.value=1050; gain.gain.setValueAtTime(0.0001,time); gain.gain.exponentialRampToValueAtTime(0.5,time+0.002); gain.gain.exponentialRampToValueAtTime(0.0001,time+0.035); oscillator.connect(gain).connect(masterGain); oscillator.start(time); oscillator.stop(time+0.04); }
 function scheduler() { if(!isPlaying)return; const now=audioContext.currentTime; const horizon=now+LOOKAHEAD; while(nextBeatTime<horizon) { const beatElapsed=nextBeatTime-playbackStart; const index=activeAt(beatElapsed); if(index<0){ nextBeatTime=playbackStart+timeline[0].time; continue; } scheduleClick(nextBeatTime); const cue=timeline[index]; const nextTransition=timeline[index+1]?.time; const proposed=nextBeatTime+(60/cue.bpm); nextBeatTime=nextTransition!==undefined && proposed-playbackStart>nextTransition ? playbackStart+nextTransition : proposed; } schedulerId=setTimeout(scheduler,SCHEDULER_MS); }
 function updateFrame() { if(!isPlaying)return; const time=elapsed(); ui.currentTime.textContent=formatTime(time); while(nextCueIndex<timeline.length && timeline[nextCueIndex].time<=time) { setActive(nextCueIndex,true); nextCueIndex+=1; } frameId=requestAnimationFrame(updateFrame); }
 async function start() { if(!timeline.length||isPlaying)return; if(!audioContext){ audioContext=new (window.AudioContext||window.webkitAudioContext)(); masterGain=audioContext.createGain(); masterGain.connect(audioContext.destination); } await audioContext.resume(); masterGain.gain.value=Number(ui.volume.value); playbackStart=audioContext.currentTime-pausedAt; nextBeatTime=audioContext.currentTime+.03; nextCueIndex=timeline.findIndex((item)=>item.time>pausedAt); if(nextCueIndex<0)nextCueIndex=timeline.length; isPlaying=true; ui.startButton.disabled=true; ui.pauseButton.disabled=false; ui.stopButton.disabled=false; ui.playbackStatus.textContent='Playing'; scheduler(); updateFrame(); }
 function pause() { if(!isPlaying)return; pausedAt=elapsed(); isPlaying=false; clearTimeout(schedulerId); cancelAnimationFrame(frameId); audioContext.suspend(); if('speechSynthesis' in window) window.speechSynthesis.cancel(); ui.startButton.textContent='Resume'; ui.startButton.disabled=false; ui.pauseButton.disabled=true; ui.playbackStatus.textContent='Paused'; }
 function stop() { isPlaying=false; clearTimeout(schedulerId); cancelAnimationFrame(frameId); if(audioContext)audioContext.suspend(); if('speechSynthesis'in window)speechSynthesis.cancel(); pausedAt=0; nextCueIndex=0; setActive(activeAt(0)); ui.currentTime.textContent='00:00'; ui.startButton.textContent='Start'; ui.startButton.disabled=!timeline.length; ui.pauseButton.disabled=true; ui.stopButton.disabled=true; ui.playbackStatus.textContent='Ready'; }
+function jumpTo(index) {
+  const cue=timeline[index];
+  if(!cue)return;
+  pausedAt=cue.time;
+  nextCueIndex=index+1;
+  ui.currentTime.textContent=formatTime(cue.time);
+  setActive(index,true);
+  ui.stopButton.disabled=false;
+  if(isPlaying) {
+    clearTimeout(schedulerId);
+    playbackStart=audioContext.currentTime-pausedAt;
+    nextBeatTime=audioContext.currentTime+.03;
+    scheduler();
+  }
+}
 
 function loadTimelineText(csvText,displayName) {
   stop();
@@ -70,4 +85,6 @@ ui.csvFile.addEventListener('change',async()=>{
   catch(error) { if(requestId===workoutRequestId)showSourceLoadError(file.name,`Could not read ${file.name}`,error); }
 });
 ui.startButton.addEventListener('click',start); ui.pauseButton.addEventListener('click',pause); ui.stopButton.addEventListener('click',stop); ui.volume.addEventListener('input',()=>{ui.volumeOutput.textContent=`${Math.round(ui.volume.value*100)}%`;if(masterGain)masterGain.gain.value=Number(ui.volume.value);});
+ui.timelineBody.addEventListener('click',(event)=>{ const row=event.target.closest('tr[data-index]'); if(row)jumpTo(Number(row.dataset.index)); });
+ui.timelineBody.addEventListener('keydown',(event)=>{ if(event.key!=='Enter'&&event.key!==' ')return; const row=event.target.closest('tr[data-index]'); if(!row)return; event.preventDefault(); jumpTo(Number(row.dataset.index)); });
 initializeWorkouts();
