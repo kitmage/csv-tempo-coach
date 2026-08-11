@@ -33,6 +33,10 @@ To add a workout:
 
 Both the manifest and workout requests use relative URLs so they continue to work when the site is deployed beneath a GitHub Pages project subpath.
 
+The catalog includes the complete **First Day to 5K** progression, split into
+individual workouts for the different sessions in weeks five and six. Its cue
+times and walk/run tempos follow the [Podrunner program](https://www.podrunner.com/first-day-to-5k.html).
+
 ## Run locally
 
 Because JavaScript modules require HTTP, serve the repository rather than opening `index.html` directly:

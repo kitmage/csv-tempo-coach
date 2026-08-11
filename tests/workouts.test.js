@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { buildTimeline } from '../csv.js';
 import { normalizeWorkoutManifest } from '../workouts.js';
 
 test('normalizes valid workout records', () => {
@@ -70,5 +72,24 @@ test('rejects malformed manifest roots', () => {
       () => normalizeWorkoutManifest(manifest),
       { name: 'TypeError', message: 'Workout list must be an array.' },
     );
+  }
+});
+
+test('every premade workout exists and contains a valid timeline', async () => {
+  const manifest = JSON.parse(await readFile(
+    new URL('../workouts/index.json', import.meta.url),
+    'utf8',
+  ));
+  const workouts = normalizeWorkoutManifest(manifest);
+
+  assert.equal(workouts.length, manifest.length);
+  for (const workout of workouts) {
+    const contents = await readFile(
+      new URL(`../workouts/${workout.file}`, import.meta.url),
+      'utf8',
+    );
+    const result = buildTimeline(contents);
+    assert.deepEqual(result.errors, [], workout.file);
+    assert.ok(result.timeline.length > 1, workout.file);
   }
 });
