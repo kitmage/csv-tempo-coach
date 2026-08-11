@@ -17,10 +17,57 @@ async function start() { if(!timeline.length||isPlaying)return; if(!audioContext
 function pause() { if(!isPlaying)return; pausedAt=elapsed(); isPlaying=false; clearTimeout(schedulerId); cancelAnimationFrame(frameId); audioContext.suspend(); if('speechSynthesis' in window) window.speechSynthesis.cancel(); ui.startButton.textContent='Resume'; ui.startButton.disabled=false; ui.pauseButton.disabled=true; ui.playbackStatus.textContent='Paused'; }
 function stop() { isPlaying=false; clearTimeout(schedulerId); cancelAnimationFrame(frameId); if(audioContext)audioContext.suspend(); if('speechSynthesis'in window)speechSynthesis.cancel(); pausedAt=0; nextCueIndex=0; setActive(activeAt(0)); ui.currentTime.textContent='00:00'; ui.startButton.textContent='Start'; ui.startButton.disabled=!timeline.length; ui.pauseButton.disabled=true; ui.stopButton.disabled=true; ui.playbackStatus.textContent='Ready'; }
 
-function loadCsv(csvText,name) { if(isPlaying)stop(); try { const result=buildTimeline(csvText); timeline=result.timeline; ui.messages.innerHTML=[...result.errors.map(x=>`<div class="error">${escapeHtml(x)}</div>`),...result.warnings.map(x=>`<div class="warning">${escapeHtml(x)}</div>`)].join(''); ui.fileSummary.textContent=result.errors.length?`${name} could not be loaded`:`${name} · ${timeline.length} cues loaded`; renderTimeline(); pausedAt=0; setActive(activeAt(0)); ui.currentTime.textContent='00:00'; ui.startButton.disabled=Boolean(result.errors.length); ui.stopButton.disabled=true; } catch(error){timeline=[];renderTimeline();ui.messages.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`;ui.fileSummary.textContent=`${name} could not be loaded`;ui.startButton.disabled=true;} }
+function loadTimelineText(csvText,displayName) {
+  stop();
+  try {
+    const result=buildTimeline(csvText);
+    timeline=result.timeline;
+    ui.messages.innerHTML=[...result.errors.map(x=>`<div class="error">${escapeHtml(x)}</div>`),...result.warnings.map(x=>`<div class="warning">${escapeHtml(x)}</div>`)].join('');
+    ui.fileSummary.textContent=result.errors.length?`${displayName} could not be loaded`:`${displayName} · ${timeline.length} cues loaded`;
+    renderTimeline();
+    pausedAt=0; nextCueIndex=0; setActive(activeAt(0));
+    ui.currentTime.textContent='00:00';
+    ui.startButton.textContent='Start'; ui.startButton.disabled=Boolean(result.errors.length)||!timeline.length;
+    ui.pauseButton.disabled=true; ui.stopButton.disabled=true; ui.playbackStatus.textContent='Ready';
+  } catch(error){
+    timeline=[]; renderTimeline(); pausedAt=0; nextCueIndex=0; setActive(-1);
+    ui.currentTime.textContent='00:00'; ui.messages.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`;
+    ui.fileSummary.textContent=`${displayName} could not be loaded`;
+    ui.startButton.textContent='Start'; ui.startButton.disabled=true; ui.pauseButton.disabled=true; ui.stopButton.disabled=true; ui.playbackStatus.textContent='Ready';
+  }
+}
+function showSourceLoadError(displayName,message,error) {
+  stop(); timeline=[]; renderTimeline(); setActive(-1);
+  ui.fileSummary.textContent=`${displayName} could not be loaded`;
+  ui.messages.innerHTML=`<div class="error">${escapeHtml(message)}: ${escapeHtml(error.message)}</div>`;
+  ui.startButton.disabled=true; ui.pauseButton.disabled=true; ui.stopButton.disabled=true;
+}
 function usableWorkout(entry) { if(!entry || typeof entry.name!=='string' || typeof entry.file!=='string')return false; const file=entry.file.trim(); return Boolean(entry.name.trim() && file && file.toLowerCase().endsWith('.csv') && !file.startsWith('/') && !file.includes('\\') && !file.split('/').includes('..')); }
 async function initializeWorkouts() { try { const response=await fetch('./workouts/index.json'); if(!response.ok)throw new Error(`Workout list request failed (${response.status}).`); const manifest=await response.json(); if(!Array.isArray(manifest))throw new Error('Workout list must be an array.'); manifest.filter(usableWorkout).forEach((entry)=>{ const option=document.createElement('option'); option.value=entry.file.trim(); option.textContent=entry.name.trim(); ui.workoutSelect.append(option); }); } catch(error) { ui.workoutSelect.disabled=true; ui.messages.innerHTML=`<div class="warning">Premade workouts are unavailable: ${escapeHtml(error.message)}</div>`; } }
-ui.workoutSelect.addEventListener('change',async()=>{ const option=ui.workoutSelect.selectedOptions[0]; if(!option?.value)return; ui.csvFile.value=''; try { const response=await fetch(`./workouts/${option.value}`); if(!response.ok)throw new Error(`Workout request failed (${response.status}).`); loadCsv(await response.text(),option.textContent); } catch(error) { loadCsv('',option.textContent); ui.messages.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`; } });
-ui.csvFile.addEventListener('change',async()=>{ const file=ui.csvFile.files[0]; if(!file)return; ui.workoutSelect.value=''; try { loadCsv(await file.text(),file.name); } catch(error) { loadCsv('',file.name); ui.messages.innerHTML=`<div class="error">${escapeHtml(error.message)}</div>`; } });
+let workoutRequestId=0;
+ui.workoutSelect.addEventListener('change',async()=>{
+  const option=ui.workoutSelect.selectedOptions[0]; const requestId=++workoutRequestId;
+  if(!option?.value)return;
+  const workoutFile=option.value; const displayName=option.textContent;
+  ui.csvFile.value=''; ui.workoutSelect.disabled=true;
+  try {
+    const response=await fetch(`./workouts/${workoutFile}`);
+    if(!response.ok)throw new Error(`request failed (${response.status})`);
+    const csvText=await response.text();
+    if(requestId!==workoutRequestId)return;
+    loadTimelineText(csvText,displayName);
+  } catch(error) {
+    if(requestId===workoutRequestId)showSourceLoadError(displayName,`Could not download ${displayName}`,error);
+  } finally {
+    if(requestId===workoutRequestId)ui.workoutSelect.disabled=false;
+  }
+});
+ui.csvFile.addEventListener('change',async()=>{
+  const file=ui.csvFile.files[0];
+  if(!file)return;
+  const requestId=++workoutRequestId; ui.workoutSelect.disabled=false; ui.workoutSelect.value='';
+  try { const csvText=await file.text(); if(requestId===workoutRequestId)loadTimelineText(csvText,file.name); }
+  catch(error) { if(requestId===workoutRequestId)showSourceLoadError(file.name,`Could not read ${file.name}`,error); }
+});
 ui.startButton.addEventListener('click',start); ui.pauseButton.addEventListener('click',pause); ui.stopButton.addEventListener('click',stop); ui.volume.addEventListener('input',()=>{ui.volumeOutput.textContent=`${Math.round(ui.volume.value*100)}%`;if(masterGain)masterGain.gain.value=Number(ui.volume.value);});
 initializeWorkouts();
